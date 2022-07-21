@@ -5,10 +5,10 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
-import "../interfaces/IStaking.sol";
+import "./interfaces/IStaking.sol";
 
 /**
- * @title Vesting
+ * @title Staking
  * @author Pavel Zanozin
  * @notice This SC for allows users to stake their
  * tokens for passive income
@@ -16,18 +16,6 @@ import "../interfaces/IStaking.sol";
 contract Staking is Ownable, IStaking {
     using SafeERC20 for IERC20;
     using Address for address;
-
-    /**
-     * @dev create object of struct
-     * @notice using for set staking params
-     */
-    StakingParams public stakingParams;
-
-    /**
-     * @dev contain max value for staking pool
-     * in one time
-     */
-    uint256 public constant MAX_STAKING_POOL = 5000000 ether;
 
     /**
      * @dev contain 100% in 1e18
@@ -47,13 +35,25 @@ contract Staking is Ownable, IStaking {
     mapping(address => Investor) public investorList;
 
     /**
+     * @dev create object of struct
+     * @notice using for set staking params
+     */
+    StakingParams public stakingParams;
+
+    /**
+     * @dev contain max value for staking pool
+     * in one time
+     */
+    uint256 public maxStakingPool;
+
+    /**
      * @dev last time in seconds when someone call
      * staking or unstaking
      */
     uint256 public lastTimeUpdate;
 
     /**
-     * @dev how many reward tokens minting per 1 second
+     * @dev annual percentage rate
      */
     uint256 public apr;
 
@@ -68,10 +68,13 @@ contract Staking is Ownable, IStaking {
      */
     uint256 public stakingTotalAmount;
 
+    /**
+     * @dev ERC20 contract address
+     */
     IERC20 public token;
 
     /**
-     * @dev Set 'token' IERC20 to interact with thrid party token
+     * @dev Set 'token' IERC20 address to interact with thrid party token
      *
      * @param token_ - of ERC20 contract
      * @notice set staking params
@@ -83,7 +86,7 @@ contract Staking is Ownable, IStaking {
         );
         token = IERC20(token_);
         stakingParams.stakingPeriod = 365 days;
-        stakingParams.feePercent = 40;
+        stakingParams.feePercent = 40 ether;
         stakingParams.cooldownPeriod = 10 days;
     }
 
@@ -121,6 +124,7 @@ contract Staking is Ownable, IStaking {
             stakingParams.stakingStartDate +
             stakingParams.stakingPeriod;
         apr = apr_;
+        maxStakingPool = (rewardsAmount_ * ONE_HUNDRED_PERCENT) / apr;
         token.safeTransferFrom(msg.sender, address(this), rewardsAmount_);
         emit SetRewards(start_, rewardsAmount_, apr_);
     }
@@ -136,9 +140,8 @@ contract Staking is Ownable, IStaking {
     function stake(uint256 amount_) external override {
         require(
             block.timestamp >
-                investorList[msg.sender].startDate +
-                    stakingParams.cooldownPeriod ||
-                investorList[msg.sender].startDate < 0,
+                investorList[msg.sender].lastTimeStake +
+                    stakingParams.cooldownPeriod,
             "Error : for re-staking wait 10 days"
         );
         require(amount_ > 0, "Error : you can't stake 0 tokens");
@@ -147,25 +150,19 @@ contract Staking is Ownable, IStaking {
             "Error : staking has not started yet"
         );
         require(
-            stakingParams.stakingStartDate + stakingParams.stakingPeriod >
-                block.timestamp,
+            stakingParams.stakingFinishDate > block.timestamp,
             "Error : staking period has end"
         );
-        require(stakingTotalAmount <= MAX_STAKING_POOL);
         _updateReward(msg.sender);
         investorList[msg.sender].stakingAmount += amount_;
+        require(
+            stakingTotalAmount + amount_ <= maxStakingPool,
+            "Error : your stake value too high"
+        );
         stakingTotalAmount += amount_;
-        if (stakingTotalAmount > MAX_STAKING_POOL) {
-            revert("Error : your stake value too high");
-        }
-        if (investorList[msg.sender].startDate > 0) {
-            token.safeTransferFrom(msg.sender, address(this), amount_);
-            emit Stake(msg.sender, amount_);
-        } else {
-            investorList[msg.sender].startDate = block.timestamp;
-            token.safeTransferFrom(msg.sender, address(this), amount_);
-            emit Stake(msg.sender, amount_);
-        }
+        investorList[msg.sender].lastTimeStake = block.timestamp;
+        token.safeTransferFrom(msg.sender, address(this), amount_);
+        emit Stake(msg.sender, amount_);
     }
 
     /**
@@ -184,16 +181,13 @@ contract Staking is Ownable, IStaking {
         uint256 amount;
         uint256 reward = investorList[msg.sender].reward;
         if (block.timestamp < stakingParams.stakingFinishDate) {
-            reward = reward - ((reward * 40 ether) / ONE_HUNDRED_PERCENT);
-            amount = investorList[msg.sender].stakingAmount + reward;
-        } else {
-            amount = investorList[msg.sender].stakingAmount + reward;
+            reward =
+                reward -
+                ((reward * stakingParams.feePercent) / ONE_HUNDRED_PERCENT);
         }
+        amount = investorList[msg.sender].stakingAmount + reward;
         stakingTotalAmount -= investorList[msg.sender].stakingAmount;
-        delete investorList[msg.sender].startDate;
-        investorList[msg.sender].finishDate = block.timestamp;
-        delete investorList[msg.sender].stakingAmount;
-        delete investorList[msg.sender].reward;
+        delete investorList[msg.sender];
         token.safeTransfer(msg.sender, amount);
         emit UnStake(msg.sender, amount);
     }
@@ -213,7 +207,9 @@ contract Staking is Ownable, IStaking {
      */
     function _updateReward(address caller_) internal {
         rewardPerTokenStored = _rewardPerToken();
-        lastTimeUpdate = block.timestamp;
+        lastTimeUpdate = block.timestamp >= stakingParams.stakingFinishDate
+            ? stakingParams.stakingFinishDate
+            : block.timestamp;
         investorList[caller_].reward = _earned(caller_);
         investorList[caller_].userRewardPerTokens = rewardPerTokenStored;
     }
@@ -224,12 +220,15 @@ contract Staking is Ownable, IStaking {
     function _rewardPerToken() internal view returns (uint256) {
         uint256 rewardRate = ((stakingTotalAmount * apr) /
             ONE_HUNDRED_PERCENT) / 365 days;
+        uint256 actualTime = block.timestamp >= stakingParams.stakingFinishDate
+            ? stakingParams.stakingFinishDate
+            : block.timestamp;
         if (stakingTotalAmount == 0) {
             return 0;
         } else {
             return
                 rewardPerTokenStored +
-                ((rewardRate * (block.timestamp - lastTimeUpdate) * 1e18)) /
+                ((rewardRate * (actualTime - lastTimeUpdate) * 1e18)) /
                 stakingTotalAmount;
         }
     }
@@ -238,19 +237,10 @@ contract Staking is Ownable, IStaking {
      * @dev calculate how many reward collected by each user
      */
     function _earned(address caller_) internal view returns (uint256) {
-        if (block.timestamp < stakingParams.stakingFinishDate) {
-            return
-                (investorList[caller_].stakingAmount *
-                    (_rewardPerToken() -
-                        investorList[caller_].userRewardPerTokens)) / 1e18;
-        }
-        if (block.timestamp >= stakingParams.stakingFinishDate) {
-            uint256 rewardRate = ((investorList[caller_].stakingAmount * apr) /
-                ONE_HUNDRED_PERCENT) / 365 days;
-            return
-                rewardRate *
-                (stakingParams.stakingFinishDate -
-                    investorList[caller_].startDate);
-        }
+        return
+            ((investorList[caller_].stakingAmount *
+                (rewardPerTokenStored -
+                    investorList[caller_].userRewardPerTokens)) / 1e18) +
+            investorList[caller_].reward;
     }
 }

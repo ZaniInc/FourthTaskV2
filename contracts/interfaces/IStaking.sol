@@ -2,23 +2,26 @@
 
 pragma solidity 0.8.7;
 
+/**
+ * @title Staking interface
+ * @author Pavel Zanozin
+ * @notice This interface contain main functions
+ * from 'Staking' contract
+ */
 interface IStaking {
-
     /**
      * @dev Store info about beneficiaries
      *
-     * @param startDate - when user call 'stake' in first time
-     * @param finishDate - when user call 'unstake' in lastTime
      * @param stakingAmount - how many tokens user staked
      * @param userRewardPerTokens - how many reward user accumulated
-     * @param userRewardPerTokens - how many reward user collect
+     * @param reward - how many reward will be collected by user
+     * @param lastTimeStake - last time when user stake tokens
      */
     struct Investor {
-        uint256 startDate;
-        uint256 finishDate;
         uint256 stakingAmount;
         uint256 userRewardPerTokens;
         uint256 reward;
+        uint256 lastTimeStake;
     }
 
     /**
@@ -63,7 +66,7 @@ interface IStaking {
      * @param amount - how many tokens un stake by user
      */
     event UnStake(address investor, uint256 amount);
-    
+
     /**
      * @dev run staking period and transfer max reward
      * value to this contract

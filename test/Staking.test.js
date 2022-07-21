@@ -23,6 +23,11 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
     instanceStaking = await Staking.new(instanceToken.address);
   });
 
+  describe("Deploy Vesting contract - false", async () => {
+    it("Error : Incorrect address , only contract address", async () => {
+      await expectRevert(Staking.new(acc2), "Error : Incorrect address , only contract address");
+    });
+  });
   describe("Check investors balance before staking", async () => {
     it("Set Balance", async () => {
       await instanceToken.approve(acc2, ether('100'));
@@ -91,6 +96,10 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expect(balanceAfterOwner).to.be.bignumber.equal(ether('5600000'));
         let balanceAfterContract = await instanceToken.balanceOf(instanceStaking.address);
         expect(balanceAfterContract).to.be.bignumber.equal(ether('0'));
+      });
+      it("SetRewards false - Ownable: caller is not the owner", async () => {
+        let start = await time.latest();
+        await expectRevert(instanceStaking.setRewards(start.add(new BN(60)), ether('500000'), new BN(0), { from: acc2 }), "Ownable: caller is not the owner");
       });
       it("Stake by acc2 false - Error : staking has not started yet", async () => {
         let balanceBefore = await instanceToken.balanceOf(acc2);
@@ -283,7 +292,7 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         let balanceAfter = await instanceToken.balanceOf(acc2);
         expectEvent(tx, "UnStake", { investor: acc2, amount: balanceAfter });
         //before third stake , un stake value = 108.5753
-        expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7129')), Number(ether('0.00008')));
+        expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
       });
     });
   });

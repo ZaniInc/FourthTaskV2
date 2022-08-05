@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: Unlicense
+//SPDX-License-Identifier: MIT
 
 pragma solidity 0.8.7;
 
@@ -49,7 +49,13 @@ interface IStaking {
      * @param reward - how many rewards can collect users
      * @param apr - how many tokens collected per second
      */
-    event SetRewards(uint256 startTime, uint256 reward, uint256 apr);
+    event SetRewards(
+        uint256 startTime,
+        uint256 reward,
+        uint256 apr,
+        uint256 stakingFinish,
+        uint256 stakingPool
+    );
 
     /**
      * @dev event logs info about stake by user

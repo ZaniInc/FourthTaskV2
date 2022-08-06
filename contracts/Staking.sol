@@ -209,7 +209,7 @@ contract Staking is IStaking, Ownable {
         _updateReward(msg.sender);
         uint256 investorStake = investorList[msg.sender].stakingAmount;
         uint256 reward = investorList[msg.sender].reward;
-        uint256 amount;
+        uint256 amountToTransfer;
         if (block.timestamp < stakingParams.stakingFinishDate) {
             reward =
                 reward -
@@ -219,11 +219,11 @@ contract Staking is IStaking, Ownable {
         stakingTotalAmount -= investorStake;
         delete investorList[msg.sender];
         uint256 balance = token.balanceOf(address(this));
-        investorStake + reward >= balance ? amount = balance : amount =
+        investorStake + reward >= balance ? amountToTransfer = balance : amountToTransfer =
             investorStake +
             reward;
-        token.safeTransfer(msg.sender, amount);
-        emit UnStake(msg.sender, amount);
+        token.safeTransfer(msg.sender, amountToTransfer);
+        emit UnStake(msg.sender, amountToTransfer);
     }
 
     /**

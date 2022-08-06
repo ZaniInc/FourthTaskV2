@@ -107,6 +107,8 @@ contract Staking is IStaking, Ownable {
      * @param apr_ - how many tokens wiil be collect
      * per second
      *
+     * Emits an {SetRewards} event
+     *
      * @notice function can call only owner of SC
      */
     function setRewards(
@@ -154,6 +156,8 @@ contract Staking is IStaking, Ownable {
      *
      * @param amount_ - how many tokens user want to stake
      *
+     * Emits an {Stake} event
+     *
      * @notice function can call by any one , but sum of
      * all staking tokens can't be higher than 'MAX_STAKING_POOL'
      */
@@ -179,10 +183,9 @@ contract Staking is IStaking, Ownable {
         );
         _updateReward(msg.sender);
         investorList[msg.sender].stakingAmount += amount_;
-        uint256 rate = ((amount_ * 10 ether) / ONE_HUNDRED_PERCENT) / 365 days;
-        investorList[msg.sender].maxUserReward = (rate *
-            (stakingParams.stakingFinishDate - block.timestamp));
-        rewardRemaining += investorList[msg.sender].maxUserReward;
+        uint256 amountToAdd = maxRewardForUser(amount_);
+        investorList[msg.sender].maxUserReward += amountToAdd;
+        rewardRemaining += amountToAdd;
         stakingTotalAmount += amount_;
         investorList[msg.sender].lastTimeStake = block.timestamp;
         token.safeTransferFrom(msg.sender, address(this), amount_);
@@ -192,6 +195,8 @@ contract Staking is IStaking, Ownable {
     /**
      * @dev function allow user to withdraw sum of stake tokens
      * by caller + collected reward for caller
+     *
+     * Emits an {UnStake} event
      *
      * @notice if the user call this function before the end of staking period
      * he will receive only 60% of his reward
@@ -225,6 +230,8 @@ contract Staking is IStaking, Ownable {
      * @dev function allow owner withdraw un use reward
      * after staking period
      *
+     * Emits an {Withdraw} event
+     *
      * @notice can be call only by owner.
      */
     function withdraw() external override onlyOwner {
@@ -237,7 +244,10 @@ contract Staking is IStaking, Ownable {
             msg.sender,
             balance - (rewardRemaining + stakingTotalAmount)
         );
-        emit Withdraw(msg.sender, balance - (rewardRemaining + stakingTotalAmount));
+        emit Withdraw(
+            msg.sender,
+            balance - (rewardRemaining + stakingTotalAmount)
+        );
     }
 
     /**
@@ -260,6 +270,24 @@ contract Staking is IStaking, Ownable {
             : block.timestamp;
         investorList[caller_].reward = _earned(caller_);
         investorList[caller_].userRewardPerTokens = rewardPerTokenStored;
+    }
+
+    /**
+     * @dev View function for calculate finish reward to
+     * investor at the stake moment
+     *
+     * @notice need to correct work withdraw function
+     */
+    function maxRewardForUser(uint256 stakeAmount)
+        internal
+        view
+        returns (uint256)
+    {
+        uint256 rate = ((stakeAmount * 10 ether) / ONE_HUNDRED_PERCENT) /
+            365 days;
+        uint256 finishUserReward = (rate *
+            (stakingParams.stakingFinishDate - block.timestamp));
+        return finishUserReward;
     }
 
     /**

@@ -76,13 +76,12 @@ interface IStaking {
     event UnStake(address investor, uint256 amount);
 
     /**
-    * @dev event logs info withdraw by owner
-    *
-    * @param to - whos withdraw
-    * @param amount - how many tokens withdraws by owner
-    */
+     * @dev event logs info withdraw by owner
+     *
+     * @param to - whos withdraw
+     * @param amount - how many tokens withdraws by owner
+     */
     event Withdraw(address to, uint256 amount);
-
 
     /**
      * @dev run staking period and transfer max reward

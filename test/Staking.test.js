@@ -331,60 +331,15 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
       it("Should success UnStake by acc2 in second time after 235 days", async () => {
         let balanceBefore = await instanceToken.balanceOf(acc2);
         expect(Number(balanceBefore)).to.be.closeTo(Number(ether('0')), Number(ether('0.008')));
+        let balanceBeforeContract = await instanceToken.balanceOf(instanceStaking.address);
+        expect(Number(balanceBeforeContract)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
         let tx = await instanceStaking.unStake({ from: acc2 });
         let balanceAfter = await instanceToken.balanceOf(acc2);
         expectEvent(tx, "UnStake", { investor: acc2, amount: balanceAfter });
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
-        expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
-        45039928978702604//0.045 tokens
-        19317803716471773840
-        21454792054826248480
-        21454792054826248480
-        499869103858934012258118
-        1000000000000000000 // 1 tokens
-        6438367896993481969
-        100000000000000000000 // 100 tokens
-        132191998033910704658
-        10000016489071463524
-        7863028285039049686
-        108021935791232179634
-        21454790137907269912
-        1302136988013698320900
-        1302136988013698320900
-        423432722459748600184
-        401295702736260217884
-        100000000000000000000000 // 100 k ether
-        13745020605691813871833
-        150213946490102782056
-        59589121955851344000
-        423432722459748600184
-        21454790144680495640
-        213946490102782056
-        21454792054826248480
-
-        499869786086488078958544
-        499989786284357169402144
-        499869103856902494727344
-        500000000000000000000000
-        6438367896993481969
-
-        // получается картина следующая - расчёт currentTotalRewardsPaid - не верный если юзеры застейкали 1500 монет из
-        // которых 600 через 130 дней после начала стейкинга , тогда дает что они накопили 150 монет , то есть 10% , как бы и было
-        // если бы все застейкали в 1 время, и вообщем если все стейк в 1 время , то расчет проходит верный
-
-        // если есть юзеры которые стейкали в разное время , то после 365 и withdraw функции на балансе останется лишь staking total amount
+        let balanceAfterContract = await instanceToken.balanceOf(instanceStaking.address);
+        expect(balanceAfterContract).to.be.bignumber.equal(ether('0'));
       });
-      // it("Should success Withdraw un use rewards", async () => {
-      //   let totalStake = await instanceStaking.stakingTotalAmount();
-      //   console.log("totalStake", totalStake.toString());
-      //   // let rewardspp = await instanceStaking.currentTotalRewardsPaid();
-      //   // console.log("rewardspp", rewardspp.toString());
-      //   let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-      //   console.log("contractBalance", contractBalance.toString());
-      //   await instanceStaking.withdraw();
-      //   let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-      //   console.log("contractBalanceAfter", contractBalanceAfter.toString());
-      // });
     });
   });
 });

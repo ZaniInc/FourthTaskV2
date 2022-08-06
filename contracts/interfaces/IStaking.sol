@@ -1,6 +1,6 @@
 //SPDX-License-Identifier: MIT
 
-pragma solidity 0.8.7;
+pragma solidity 0.8.10;
 
 /**
  * @title Staking interface
@@ -16,12 +16,14 @@ interface IStaking {
      * @param userRewardPerTokens - how many reward user accumulated
      * @param reward - how many reward will be collected by user
      * @param lastTimeStake - last time when user stake tokens
+     * @param maxUserReward - max reward which user can collect
      */
     struct Investor {
         uint256 stakingAmount;
         uint256 userRewardPerTokens;
         uint256 reward;
         uint256 lastTimeStake;
+        uint256 maxUserReward;
     }
 
     /**
@@ -74,6 +76,15 @@ interface IStaking {
     event UnStake(address investor, uint256 amount);
 
     /**
+    * @dev event logs info withdraw by owner
+    *
+    * @param to - whos withdraw
+    * @param amount - how many tokens withdraws by owner
+    */
+    event Withdraw(address to, uint256 amount);
+
+
+    /**
      * @dev run staking period and transfer max reward
      * value to this contract
      *
@@ -109,4 +120,12 @@ interface IStaking {
      * he will receive only 60% of his reward
      */
     function unStake() external;
+
+    /**
+     * @dev function allow owner withdraw un use reward
+     * after staking period
+     *
+     * @notice can be call only by owner.
+     */
+    function withdraw() external;
 }

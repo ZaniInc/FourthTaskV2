@@ -207,7 +207,7 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         let balanceAfter = await instanceToken.balanceOf(acc4);
         expect(balanceAfter).to.be.bignumber.equal(ether('0'));
       });
-      it("Should success stake 400 tokens by acc2", async () => {
+      it("Should success stake 400 tokens by acc5", async () => {
         let balanceBefore = await instanceToken.balanceOf(acc5);
         expect(balanceBefore).to.be.bignumber.equal(ether('400'));
         await instanceToken.approve(instanceStaking.address, ether('400'), { from: acc5 });
@@ -260,8 +260,6 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expect(balanceAfter).to.be.bignumber.equal(ether('0'));
       });
       it("Should success Second Stake by acc2 after 130 days", async () => {
-        let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-        console.log(contractBalance.toString());
         let balanceBefore = await instanceToken.balanceOf(acc2);
         expect(Number(balanceBefore)).to.be.closeTo(Number(ether('102.13')), Number(ether('0.008')));
         await instanceToken.approve(instanceStaking.address, ether('100'), { from: acc2 });
@@ -269,12 +267,8 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expectEvent(tx, "Stake", { investor: acc2, amount: ether('100') });
         let balanceAfter = await instanceToken.balanceOf(acc2);
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('2.13')), Number(ether('0.008')));
-        let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-        console.log(contractBalanceAfter.toString());
       });
       it("Should success Third Stake by acc2 after 15 days", async () => {
-        let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-        console.log(contractBalance.toString());
         await time.increase(time.duration.days(15));
         let balanceBefore = await instanceToken.balanceOf(acc2);
         expect(Number(balanceBefore)).to.be.closeTo(Number(ether('2.13')), Number(ether('0.008')));
@@ -283,11 +277,10 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expectEvent(tx, "Stake", { investor: acc2, amount: balanceBefore });
         let balanceAfter = await instanceToken.balanceOf(acc2);
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('0')), Number(ether('0.008')));
-        let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-        console.log(contractBalanceAfter.toString());
+
       });
       it("Should success UnStake by acc3 after 365 days", async () => {
-        await time.increase(time.duration.days(235));
+        await time.increase(time.duration.days(240));
         await time.increase(time.duration.seconds(60));
         let balanceBefore = await instanceToken.balanceOf(acc3);
         expect(balanceBefore).to.be.bignumber.equal(ether('0'));
@@ -296,18 +289,18 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expectEvent(tx, "UnStake", { investor: acc3, amount: balanceAfter });
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('220')), Number(ether('0.00008')));
       });
-      // it("Should success Withdraw un use rewards", async () => {
-      //   await time.increase(time.duration.days(235));
-      //   let totalStake = await instanceStaking.stakingTotalAmount();
-      //   console.log("totalStake", totalStake.toString());
-      //   let rewardspp = await instanceStaking.currentTotalRewardsPaid();
-      //   console.log("rewardspp", rewardspp.toString());
-      //   let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-      //   console.log("contractBalance", contractBalance.toString());
-      //   await instanceStaking.withdraw();
-      //   let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-      //   console.log("contractBalanceAfter", contractBalanceAfter.toString());
-      // });
+      it("Should success Withdraw un use rewards", async () => {
+        let balanceBeforeOwner = await instanceToken.balanceOf(owner);
+        expect(balanceBeforeOwner).to.be.bignumber.equal(ether('5100000'));
+        let balanceBeforeContract = await instanceToken.balanceOf(instanceStaking.address);
+        let rewardsRemainig = await instanceStaking.rewardRemaining();
+        let stakingTotalAmounts = await instanceStaking.stakingTotalAmount();
+        let withdrawAmount = balanceBeforeContract.sub(rewardsRemainig.add(stakingTotalAmounts));
+        let tx = await instanceStaking.withdraw();
+        expectEvent(tx, "Withdraw", { to: owner, amount: withdrawAmount });
+        let balanceAfterOwner = await instanceToken.balanceOf(owner);
+        expect(balanceAfterOwner).to.be.bignumber.equal(ether('5100000').add(withdrawAmount));
+      });
       it("Should fail if Stake by acc2 after staking period", async () => {
         await expectRevert(instanceStaking.stake(ether('50'), { from: acc2 }), "Error : staking period has end");
       });
@@ -328,44 +321,70 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('440')), Number(ether('0.00009')));
       });
       it("Should success UnStake by acc6 after 365 days", async () => {
-        let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-        console.log("contractBalance", contractBalance.toString());
-        let totalStake = await instanceStaking.stakingTotalAmount();
-        console.log("totalStake", totalStake.toString());
-        let rewardspp = await instanceStaking.currentTotalRewardsPaid();
-        console.log("rewardspp", rewardspp.toString());
         let balanceBefore = await instanceToken.balanceOf(acc6);
         expect(balanceBefore).to.be.bignumber.equal(ether('0'));
         let tx = await instanceStaking.unStake({ from: acc6 });
         let balanceAfter = await instanceToken.balanceOf(acc6);
         expectEvent(tx, "UnStake", { investor: acc6, amount: balanceAfter });
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('532.1918')), Number(ether('0.00009')));
-        let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-        console.log("contractBalanceAfter", contractBalanceAfter.toString());
       });
       it("Should success UnStake by acc2 in second time after 235 days", async () => {
-        let totalStake = await instanceStaking.stakingTotalAmount();
-        console.log("totalStake", totalStake.toString());
-        let rewardspp = await instanceStaking.currentTotalRewardsPaid();
-        console.log("rewardspp", rewardspp.toString());
-        let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
-        console.log("contractBalance", contractBalance.toString());
         let balanceBefore = await instanceToken.balanceOf(acc2);
         expect(Number(balanceBefore)).to.be.closeTo(Number(ether('0')), Number(ether('0.008')));
         let tx = await instanceStaking.unStake({ from: acc2 });
         let balanceAfter = await instanceToken.balanceOf(acc2);
         expectEvent(tx, "UnStake", { investor: acc2, amount: balanceAfter });
         expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
-        let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
-        console.log("contractBalanceAfter", contractBalanceAfter.toString());
-        11145039928978702604 //0.045 ether
+        expect(Number(balanceAfter)).to.be.closeTo(Number(ether('108.7041')), Number(ether('0.00008')));
+        45039928978702604//0.045 tokens
+        19317803716471773840
         21454792054826248480
-        22082057902086577900
-        291615832712391027
-        246575713470284928
-        457496407731579562128
-        1302136988203957072840
+        21454792054826248480
+        499869103858934012258118
+        1000000000000000000 // 1 tokens
+        6438367896993481969
+        100000000000000000000 // 100 tokens
+        132191998033910704658
+        10000016489071463524
+        7863028285039049686
+        108021935791232179634
+        21454790137907269912
+        1302136988013698320900
+        1302136988013698320900
+        423432722459748600184
+        401295702736260217884
+        100000000000000000000000 // 100 k ether
+        13745020605691813871833
+        150213946490102782056
+        59589121955851344000
+        423432722459748600184
+        21454790144680495640
+        213946490102782056
+        21454792054826248480
+
+        499869786086488078958544
+        499989786284357169402144
+        499869103856902494727344
+        500000000000000000000000
+        6438367896993481969
+
+        // получается картина следующая - расчёт currentTotalRewardsPaid - не верный если юзеры застейкали 1500 монет из
+        // которых 600 через 130 дней после начала стейкинга , тогда дает что они накопили 150 монет , то есть 10% , как бы и было
+        // если бы все застейкали в 1 время, и вообщем если все стейк в 1 время , то расчет проходит верный
+
+        // если есть юзеры которые стейкали в разное время , то после 365 и withdraw функции на балансе останется лишь staking total amount
       });
+      // it("Should success Withdraw un use rewards", async () => {
+      //   let totalStake = await instanceStaking.stakingTotalAmount();
+      //   console.log("totalStake", totalStake.toString());
+      //   // let rewardspp = await instanceStaking.currentTotalRewardsPaid();
+      //   // console.log("rewardspp", rewardspp.toString());
+      //   let contractBalance = await instanceToken.balanceOf(instanceStaking.address);
+      //   console.log("contractBalance", contractBalance.toString());
+      //   await instanceStaking.withdraw();
+      //   let contractBalanceAfter = await instanceToken.balanceOf(instanceStaking.address);
+      //   console.log("contractBalanceAfter", contractBalanceAfter.toString());
+      // });
     });
   });
 });

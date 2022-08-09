@@ -148,7 +148,7 @@ contract("Staking", async ([owner, acc2, acc3, acc4, acc5, acc6]) => {
         let APR = await instanceStaking.apr();
         expect(stakingParam[0]).to.be.bignumber.equal(start.add(new BN(60)));
         expect(stakingParam[1]).to.be.bignumber.equal(finishDate);
-        expect(APR).to.be.bignumber.equal(new BN(10));
+        expect(APR).to.be.bignumber.equal(ether('10'));
         expectEvent(tx, "SetRewards", { startTime: start.add(new BN(60)), reward: ether('500000'), apr: new BN(10), stakingFinish: finishDate, stakingPool: maxStakingPool });
         let balanceAfterOwner = await instanceToken.balanceOf(owner);
         expect(balanceAfterOwner).to.be.bignumber.equal(ether('5100000'));

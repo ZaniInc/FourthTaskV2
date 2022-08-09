@@ -6,7 +6,6 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/Address.sol";
 import "./interfaces/IStaking.sol";
-import "hardhat/console.sol";
 
 /**
  * @title Staking
@@ -137,10 +136,8 @@ contract Staking is IStaking, Ownable {
         stakingParams.stakingFinishDate =
             stakingParams.stakingStartDate +
             stakingParams.stakingPeriod;
-        apr = apr_;
-        maxStakingPool =
-            (rewardsAmount_ * ONE_HUNDRED_PERCENT) /
-            (apr * 1 ether);
+        apr = apr_ * 1 ether;
+        maxStakingPool = (rewardsAmount_ * ONE_HUNDRED_PERCENT) / apr;
         token.safeTransferFrom(msg.sender, address(this), rewardsAmount_);
         emit SetRewards(
             start_,
@@ -183,7 +180,7 @@ contract Staking is IStaking, Ownable {
         );
         _updateReward(msg.sender);
         investorList[msg.sender].stakingAmount += amount_;
-        uint256 amountToAdd = maxRewardForUser(amount_);
+        uint256 amountToAdd = _maxRewardForUser(amount_);
         investorList[msg.sender].maxUserReward += amountToAdd;
         rewardRemaining += amountToAdd;
         stakingTotalAmount += amount_;
@@ -219,9 +216,9 @@ contract Staking is IStaking, Ownable {
         stakingTotalAmount -= investorStake;
         delete investorList[msg.sender];
         uint256 balance = token.balanceOf(address(this));
-        investorStake + reward >= balance ? amountToTransfer = balance : amountToTransfer =
-            investorStake +
-            reward;
+        investorStake + reward >= balance
+            ? amountToTransfer = balance
+            : amountToTransfer = investorStake + reward;
         token.safeTransfer(msg.sender, amountToTransfer);
         emit UnStake(msg.sender, amountToTransfer);
     }
@@ -278,15 +275,17 @@ contract Staking is IStaking, Ownable {
      *
      * @notice need to correct work withdraw function
      */
-    function maxRewardForUser(uint256 stakeAmount)
+    function _maxRewardForUser(uint256 stakeAmount_)
         internal
         view
         returns (uint256)
     {
-        uint256 rate = ((stakeAmount * 10 ether) / ONE_HUNDRED_PERCENT) /
-            365 days;
+        uint256 rate = ((stakeAmount_ * apr) / ONE_HUNDRED_PERCENT) / 365 days;
+        uint256 actualTime = block.timestamp <= stakingParams.stakingStartDate
+            ? stakingParams.stakingStartDate
+            : block.timestamp;
         uint256 finishUserReward = (rate *
-            (stakingParams.stakingFinishDate - block.timestamp));
+            (stakingParams.stakingFinishDate - actualTime));
         return finishUserReward;
     }
 
@@ -294,7 +293,7 @@ contract Staking is IStaking, Ownable {
      * @dev calculate how many reward collected by all users
      */
     function _rewardPerToken() internal view returns (uint256) {
-        uint256 rewardRate = ((stakingTotalAmount * (apr * 1 ether)) /
+        uint256 rewardRate = ((stakingTotalAmount * apr) /
             ONE_HUNDRED_PERCENT) / 365 days;
         uint256 actualTime = block.timestamp >= stakingParams.stakingFinishDate
             ? stakingParams.stakingFinishDate
